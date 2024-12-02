@@ -1,41 +1,54 @@
-import numpy as np
-
-from .ImageResize import ImageResize
-from .SamplesGenerator import SamplesGenerator
-from .SamplesFilterLuminance import SamplesFilterLuminance
-from .SamplesFilterEuclidean import SamplesFilterEuclidean
-from .SamplesCluster import SamplesCluster
+from .Step import *
 from .LightsRender import LightsRender
 
 class ILSDetector:
-    def __init__(self, img, samples_multiplier=0.006, euclidean_threshold_pixel=0.05):
+    def __init__(self, img, samples_multiplier=0.006, euclidean_threshold_pixel=0.03):
         self.img = img
         self.samples_multiplier = samples_multiplier
         self.euclidean_threshold_pixel = euclidean_threshold_pixel
+        self.steps = self._initialize_steps()
+
+    def _initialize_image_transform(self):
+        image_resizer, image_blur, image_to_array, image_to_lum = ImageResize(), ImageBlur(), ImageToArray(), ImageToLum()
+        image_transform = ImageTransform()
+        image_transform.steps = [image_resizer, image_blur, image_to_array, image_to_lum]
+        return image_transform
+
+    def _initialize_samples_generate(self):
+        samples_generate = SampleGenerate()
+        return samples_generate
+
+    def _initialize_samples_filter(self):
+        samples_sort = SamplesSort()
+        samples_filter_luminance, samples_filter_euclidean = SamplesFilterLuminance(), SamplesFilterEuclidean()
+        samples_filter = SamplesFilter()
+        samples_filter.steps = [samples_filter_luminance, samples_sort, samples_filter_euclidean]
+        return samples_filter
+
+    def _initialize_samples_cluster(self):
+        samples_claster = SamplesCluster()
+        return samples_claster
+
+    def _initialize_steps(self):
+        image_transform_steps = self._initialize_image_transform()
+        samples_generate_steps = self._initialize_samples_generate()
+        samples_filter_steps = self._initialize_samples_filter()
+        samples_cluster_steps = self._initialize_samples_cluster()
+        steps = [image_transform_steps, samples_generate_steps, samples_filter_steps, samples_cluster_steps]
+        return steps
 
     def find(self):
-        #Преобразование изображения (img) -> (height, width, lum)
-        resizer = ImageResize()
-        resized_img = np.array(resizer.run(self.img,1024))
-        height, width, _ = resized_img.shape
-        lum = resized_img[:, :, 0] * 0.2126 + resized_img[:, :, 1] * 0.7152 + resized_img[:, :, 2] * 0.0722
-        #Генерация сэмплов  (lum,samples_multiplier) -> (sample_list)
-        sample_generator = SamplesGenerator()
-        sample_list = sample_generator.Generate(lum)
-        #Фильтрация по яркости (sample_list, lum) -> sample_list
-        sample_filter_luminance = SamplesFilterLuminance()
-        sample_list = sample_filter_luminance.filter(sample_list,lum)
-        #Сортировка по яркости (sample_list) -> sample_list
-        sample_list = sorted(sample_list, key=lambda obj: obj.luminance, reverse=True)
-        #Фильтрация по евклидову расстоянию (sample_list, euclidean_threshold_pixel) -> (sample_list)
-        euclidean_threshold = float(self.euclidean_threshold_pixel) * (width / 2048.0)
-        sample_list_euclidean = SamplesFilterEuclidean()
-        sample_list = sample_list_euclidean.filter(sample_list,euclidean_threshold)
-        #Кластеризация сэмплов (sample_list) -> (lights)
-        samples_cluster = SamplesCluster()
-        lights = samples_cluster.cluster(sample_list,lum)
-        #Рендер сэмплов на изображение (lights, img) -> (img)
-        lights_render = LightsRender()
-        img = lights_render.render(lights,self.img)
+        copied_img = self.img.copy()
+        data = {
+            "img": self.img,
+            "samples_multiplyer": self.samples_multiplier,
+            "euclidean_threshold_pixel": self.euclidean_threshold_pixel,
+        }
+        for step in self.steps:
+            print(step.step_name)
+            data = step.run(data)
 
-        return (lights,img)
+        lights_render = LightsRender()
+        lights_render.render(data["lights"],copied_img)
+
+        return data

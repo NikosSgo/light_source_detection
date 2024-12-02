@@ -11,9 +11,12 @@ def compute_neighbour_luminance(lum, width, height, image_pos, local_size):
 
 class SamplesFilterLuminance:
     def __init__(self):
-        pass
+        self.step_name = "Фильтрация по яркости сэмпла."
 
-    def filter(self,samples,luminance_image):
+    def filter(self,data):
+        luminance_image = data["img"]
+        samples = data["samples"]
+
         height, width = luminance_image.shape
         local_size = int(float(12) * (width / 1024.0)) + 1
 
@@ -24,5 +27,7 @@ class SamplesFilterLuminance:
         filtered_samples =  [sample for sample in samples
                 if compute_neighbour_luminance(luminance_image, width, height, sample.image_pos, local_size) > luminance_threshold
                 ]
-        print(f"Количество сэмплов после фильтрации по яркости {len(filtered_samples)}")
-        return filtered_samples
+        print(f"Количество сэмплов после фильтрации - {len(filtered_samples)}.")
+
+        data["samples"] = filtered_samples
+        return data

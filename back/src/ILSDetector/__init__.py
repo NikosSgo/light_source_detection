@@ -1,1 +1,1 @@
-from .ILSDetector import *
+from .ILSDetector import ILSDetector

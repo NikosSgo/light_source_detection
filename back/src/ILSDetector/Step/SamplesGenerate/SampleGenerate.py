@@ -1,4 +1,3 @@
-import numpy as np
 import math
 
 from .Sample import Sample
@@ -15,35 +14,43 @@ def hammersley_sequence(i, N):
     return (float(i) / float(N), vdc_sequence(i))
 
 def sphere_sample(u, v):
-  PI = 3.14159265358979
-  phi = v * 2.0 * PI
-  cosTheta = 2.0 * u - 1.0 # map to -1,1
-  sinTheta = math.sqrt(1.0 - cosTheta * cosTheta);
-  return (math.cos(phi) * sinTheta, math.sin(phi) * sinTheta, cosTheta)
+  pi = 3.14159265358979
+  phi = v * 2.0 * pi
+  cos_theta = 2.0 * u - 1.0
+  sin_theta = math.sqrt(1.0 - cos_theta * cos_theta)
+  return (math.cos(phi) * sin_theta, math.sin(phi) * sin_theta, cos_theta)
 
 def sphere_to_equirectangular(pos):
     x = math.atan2(pos[1], pos[0]) / (2 * math.pi) + 0.5
     y = math.asin(pos[2]) / math.pi + 0.5
     return (x, y)
 
-class SamplesGenerator:
+class SampleGenerate:
     def __init__(self):
-        pass
+        self.step_name = "Генерация сэмплов:"
+        self.steps = []
 
-    def Generate(self, luminance_image, samples_multiplyer = 0.006):
-        height, width = luminance_image.shape
+    def add_step(self,step):
+        self.steps.append(step)
+
+    def run(self,data):
+        lum_img = data["img"]
+        samples_multiplyer = data["samples_multiplyer"]
+
+        height, width = lum_img.shape
         number_samples = int(samples_multiplyer * width * height)
 
         sample_list = []
 
-        for i in range(0,number_samples):
+        for i in range(0, number_samples):
             xi = hammersley_sequence(i, number_samples)
             xyz = sphere_sample(xi[0], xi[1])
-            imagePos = sphere_to_equirectangular(xyz)
+            image_pos = sphere_to_equirectangular(xyz)
 
-            luminance = luminance_image[int(imagePos[1] * height),int(imagePos[0] * width)]
-            sample = Sample(luminance, imagePos, xyz)
+            luminance = lum_img[int(image_pos[1] * height), int(image_pos[0] * width)]
+            sample = Sample(luminance, image_pos, xyz)
 
             sample_list.append(sample)
-        print(f"Количество сэмплов после генерации {len(sample_list)}")
-        return sample_list
+        print(f"Сэмплов сгенерировано - {len(sample_list)}.")
+        data["samples"] = sample_list
+        return data
